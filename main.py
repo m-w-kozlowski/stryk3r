@@ -12,11 +12,15 @@ import blacklist
 assert 'DC_BOT_TOKEN' in os.environ
 
 
+MONGO_URL = os.environ['MONGO_URL']
+MONGO_PORT = int(os.environ['MONGO_PORT'])
+
+
 class CustomClient(discord.Client):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.synced = False
-        self.mongo_client = pymongo.MongoClient(host='127.0.0.1', port=27017)
+        self.mongo_client = pymongo.MongoClient(host=MONGO_URL, port=MONGO_PORT)
         self.blacklist = blacklist.Client(
             self.mongo_client['bot']['user_blacklist'],
             self.mongo_client['bot']['character_blacklist']
