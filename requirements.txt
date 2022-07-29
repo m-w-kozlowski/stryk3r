@@ -1,0 +1,5 @@
+aiohttp~=3.7.4.post0
+discord~=1.7.3
+requests~=2.26.0
+yarl~=1.7.0
+pymongo~=4.0
