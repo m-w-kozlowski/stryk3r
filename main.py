@@ -1,13 +1,16 @@
 import os
 import aiohttp
 import pymongo
+import  register
+import albiononline
 import discord
 from util import *
 from typing import Literal
 from typing import Optional
 from typing import Any
-
 import blacklist
+import settings
+
 
 assert 'DC_BOT_TOKEN' in os.environ
 
@@ -25,6 +28,12 @@ class CustomClient(discord.Client):
             self.mongo_client['bot']['user_blacklist'],
             self.mongo_client['bot']['character_blacklist']
         )
+        self.settings = settings.SettingsClient(
+            self.mongo_client['bot']['settings']
+        )
+        self.register = register.Client(
+            self.mongo_client['bot']['registered']
+        )
 
 
 intents = discord.Intents.all()
@@ -34,6 +43,11 @@ client = CustomClient(
 tree = discord.app_commands.CommandTree(
     client=client
 )
+
+
+@client.settings.setting('albion-online-role')
+def __default_setting_albion_online_role():
+    return None
 
 
 @tree.command(
@@ -131,6 +145,49 @@ async def __command_blacklist_characters(
         return
     resp_content = '**Blacklisted characters**\n' + '\n'.join(members)
     await interaction.response.send_message(resp_content)
+
+
+@tree.command(
+    name='register',
+    description='Registers albion online character'
+)
+async def __command_register(
+        interaction: discord.Interaction,
+        character: str
+) -> None:
+    if interaction.guild is None:
+        await interaction.response.send_message('You\'re trying to use server-only command')
+        return
+    if not await albiononline.Character.search(character):
+        await interaction.response.send_message('Such character does not exist')
+        return
+    result = client.register.add(interaction.user, character)
+    if result == 'failed-member':
+        await interaction.response.send_message('You\'re already registered')
+        return
+    elif result == 'failed-character':
+        await interaction.response.send_message('This character is already registered')
+        return
+    else:
+        await interaction.response.send_message('Successfully registered')
+
+
+@tree.command(
+    name='unregister',
+    description='Unregister user'
+)
+async def __command_unregister(
+        interaction: discord.Interaction,
+        user: discord.Member
+) -> None:
+    if interaction.guild is None:
+        await interaction.response.send_message('You\'re trying to use server-only command')
+        return
+    result = client.register.remove(user)
+    if result == 'failed':
+        await interaction.response.send_message('User is not registered')
+        return
+    await interaction.response.send_message('Unregistered user')
 
 
 @client.event

@@ -23,12 +23,12 @@ class Setting:
 
     def __default(self) -> Any:
         try:
-            default = self.client.settings[self.sid]
+            default = self.client.settings()[self.sid]
         except KeyError:
             raise NotImplementedError
         if not isinstance(default, Callable):
             raise TypeError()
-        return default
+        return default()
 
     def set(self, __value: dict) -> None:
         if not self.collection.update_one(self.__query, {
@@ -45,12 +45,15 @@ class Setting:
     def __get(self) -> dict:
         query_result = self.collection.find_one(self.__query)
         if query_result is None:
-            self.set(self.__default())
+            self.collection.insert_one({
+                'sid': self.sid,
+                'gid': self.gid,
+                'v': self.__default()
+            })
         else:
             return query_result
         return self.collection.find_one(self.__query)
 
-    @property
     def value(self):
         return self.__get()['v']
 
@@ -85,6 +88,5 @@ class SettingsClient:
             self.__settings[name] = function
         return decorator
 
-    @property
     def settings(self):
         return self.__settings
