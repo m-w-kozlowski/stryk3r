@@ -1,24 +1,37 @@
+# general imports
 import os
 import aiohttp
 import pymongo
-import  register
+import logging
+
+# custom utility imports
+from util import *
+
+# RDE imports
+import register
 import albiononline
 import discord
-from util import *
-from typing import Literal
-from typing import Optional
-from typing import Any
 import blacklist
 import settings
 
+# typing imports
+from typing import (
+    Literal,
+    Optional,
+    Any
+)
 
+
+# environment variables
 assert 'DC_BOT_TOKEN' in os.environ
-
+assert 'MONGO_URL' in os.environ
+assert 'MONGO_PORT' in os.environ
 
 MONGO_URL = os.environ['MONGO_URL']
 MONGO_PORT = int(os.environ['MONGO_PORT'])
 
 
+# RDE client
 class CustomClient(discord.Client):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -36,6 +49,7 @@ class CustomClient(discord.Client):
         )
 
 
+# RDE client arguments
 intents = discord.Intents.all()
 client = CustomClient(
     intents=intents
@@ -45,11 +59,13 @@ tree = discord.app_commands.CommandTree(
 )
 
 
+# settings
 @client.settings.setting('albion-online-role')
 def __default_setting_albion_online_role():
     return None
 
 
+# commands
 @tree.command(
     name='blacklist-add-user',
     description='Adds discord user to the blacklist'
@@ -66,6 +82,12 @@ async def __command_blacklist_add_user(
     else:
         bl_user.add(reason)
         await interaction.response.send_message(f'Blacklisted {user.mention}')
+        logging.warning(' Blacklist: added <User {} id={}> from <Guild "{}" id={}>'.format(
+            user.name,
+            user.id,
+            interaction.guild.name,
+            interaction.guild.id
+        ))
 
 
 @tree.command(
@@ -82,6 +104,12 @@ async def __command_blacklist_remove_user(
         return
     bl_user.remove()
     await interaction.response.send_message('Removed user from the blacklist')
+    logging.warning(' Blacklist: removed <User {} id={}> from <Guild "{}" id={}>'.format(
+        user.name,
+        user.id,
+        interaction.guild.name,
+        interaction.guild.id
+    ))
 
 
 @tree.command(
@@ -114,6 +142,11 @@ async def __command_blacklist_add_character(
         return
     bl_character.add(reason)
     await interaction.response.send_message('Added character to blacklist')
+    logging.warning(' Blacklist: added <Character {}> from <Guild "{}" id={}>'.format(
+        character,
+        interaction.guild.name,
+        interaction.guild.id
+    ))
 
 
 @tree.command(
@@ -130,6 +163,11 @@ async def __command_blacklist_remove_character(
         return
     bl_character.remove()
     await interaction.response.send_message('Removed character from the blacklist')
+    logging.warning(' Blacklist: removed <Character {}> from <Guild "{}" id={}>'.format(
+        character,
+        interaction.guild.name,
+        interaction.guild.id
+    ))
 
 
 @tree.command(
@@ -190,12 +228,21 @@ async def __command_unregister(
     await interaction.response.send_message('Unregistered user')
 
 
+# RDE events
 @client.event
 async def on_ready() -> None:
     if not client.synced:
-        if os.environ['SYNC_COMMANDS']:
-            await tree.sync()
-            client.synced = True
+        await tree.sync()
+        logging.warning(' Synchronized global command tree')
+        client.synced = True
+        logging.warning(' Client ready')
 
 
+@client.event
+async def on_guild_join(guild: discord.Guild) -> None:
+    await tree.sync(guild=guild)
+    logging.warning(f'Synchronized command tree for {guild.__repr__()}')
+
+
+# RDE run
 client.run(os.environ['DC_BOT_TOKEN'])
