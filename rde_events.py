@@ -11,6 +11,9 @@ def init(client: rde_client.Client) -> None:
             logging.warning(' Synchronized global command tree')
             client.synced = True
             logging.warning(' Client ready')
+        print(f'Connected to {len(client.guilds)} discord guilds:')
+        for guild in client.guilds:
+            print(guild)
 
     @client.event
     async def on_guild_join(guild: discord.Guild) -> None:
